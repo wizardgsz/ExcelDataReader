@@ -1,0 +1,401 @@
+using System.Data;
+using System.Diagnostics.CodeAnalysis;
+#if NET8_0_OR_GREATER
+#endif
+using ExcelDataReader.Core;
+
+namespace ExcelDataReader;
+
+/// <summary>
+/// A generic implementation of the IExcelDataReader interface using IWorkbook/IWorksheet to enumerate data.
+/// </summary>
+/// <typeparam name="TWorkbook">A type implementing IWorkbook.</typeparam>
+/// <typeparam name="TWorksheet">A type implementing IWorksheet.</typeparam>
+internal abstract class ExcelDataReader<TWorkbook, TWorksheet> : IExcelDataReader
+    where TWorkbook : IWorkbook<TWorksheet>
+    where TWorksheet : IWorksheet
+{
+    private IEnumerator<TWorksheet>? _worksheetIterator;
+    private IEnumerator<Row>? _rowIterator;
+    private IEnumerator<TWorksheet>? _cachedWorksheetIterator;
+    private List<TWorksheet>? _cachedWorksheets;
+    private int _idx;
+    private bool _singlePassMode;
+
+    ~ExcelDataReader()
+    {
+        Dispose(false);
+    }
+
+    public string? Name => _worksheetIterator?.Current?.Name;
+
+    public string? CodeName => _worksheetIterator?.Current?.CodeName;
+
+    public string? VisibleState => _worksheetIterator?.Current?.VisibleState;
+
+    public int ActiveSheet => GetWorkbook().ActiveSheet;
+
+    public bool IsActiveSheet => _idx == GetWorkbook().ActiveSheet;
+
+    public HeaderFooter? HeaderFooter => _worksheetIterator?.Current?.HeaderFooter;
+
+    // We shouldn't expose the internal array here. 
+    public CellRange[] MergeCells => _worksheetIterator?.Current?.MergeCells ?? [];
+
+    public int Depth => 0;
+
+    public int ResultsCount => Workbook?.ResultsCount ?? -1;
+
+    public bool IsClosed { get; private set; }
+
+    public int FieldCount => _singlePassMode
+        ? Math.Max(_worksheetIterator?.Current?.FieldCount ?? 0, RowCells?.Length ?? 0)
+        : (_worksheetIterator?.Current?.FieldCount ?? 0);
+
+    public int RowCount => _singlePassMode
+        ? throw new InvalidOperationException("RowCount is not available in SinglePassMode.")
+        : (_worksheetIterator?.Current?.RowCount ?? 0);
+
+    public CellRange? Dimension => _worksheetIterator?.Current?.Dimension;
+
+    public int RecordsAffected => throw new NotSupportedException();
+
+    public double RowHeight => _rowIterator?.Current.Height ?? 0;
+
+    protected bool SinglePassMode { set => _singlePassMode = value; }
+
+    protected TWorkbook? Workbook { get; set; }
+
+    private Cell?[]? RowCells { get; set; }
+
+    public object this[int i] => GetValue(i);
+
+    public object this[string name] => throw new NotSupportedException();
+
+    public bool GetBoolean(int i) => (bool)GetValue(i);
+
+    public byte GetByte(int i) => (byte)GetValue(i);
+
+    public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length)
+        => throw new NotSupportedException();
+
+    public char GetChar(int i) => (char)GetValue(i);
+
+    public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length)
+         => throw new NotSupportedException();
+
+    public IDataReader GetData(int i) => throw new NotSupportedException();
+
+    public string GetDataTypeName(int i) => throw new NotSupportedException();
+
+    public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
+
+    public decimal GetDecimal(int i) => (decimal)GetValue(i);
+
+    public double GetDouble(int i) => (double)GetValue(i);
+
+#if NET8_0_OR_GREATER
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+    public Type GetFieldType(int i) => GetValue(i)?.GetType() ?? typeof(DBNull);
+
+    public float GetFloat(int i) => (float)GetValue(i);
+
+    public Guid GetGuid(int i) => (Guid)GetValue(i);
+
+    public short GetInt16(int i) => (short)GetValue(i);
+
+    public int GetInt32(int i) => (int)GetValue(i);
+
+    public long GetInt64(int i) => (long)GetValue(i);
+
+    public string GetName(int i) => throw new NotSupportedException();
+
+    public int GetOrdinal(string name) => throw new NotSupportedException();
+
+    /// <inheritdoc />
+    public DataTable GetSchemaTable() => throw new NotSupportedException();
+
+    public string GetString(int i) => (string)GetValue(i);
+
+    public object GetValue(int i)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+        
+        return RowCells[i]?.Value ?? DBNull.Value;
+    }
+
+    public int GetValues(object[] values)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+
+        int readingLenth = values.Length > FieldCount ? FieldCount : values.Length;
+        for (int i = 0; i < readingLenth; i++)
+        {
+            values[i] = RowCells[i]?.Value ?? DBNull.Value;
+        }
+
+        return readingLenth;
+    }
+           
+    public bool IsDBNull(int i) => GetValue(i) is DBNull;
+
+    public string? GetNumberFormatString(int i)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+        if (RowCells[i]?.EffectiveStyle is not { } effectiveStyle)
+            return null;
+        return GetWorkbook().GetNumberFormatString(effectiveStyle.NumberFormatIndex, null)?.FormatString;
+    }
+
+    public string? GetNumberFormatString(int i, IFormatProvider? provider)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+        if (RowCells[i]?.EffectiveStyle is not { } effectiveStyle)
+            return null;
+        return GetWorkbook().GetNumberFormatString(effectiveStyle.NumberFormatIndex, provider)?.FormatString;
+    }
+
+    public int GetNumberFormatIndex(int i)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+        if (RowCells[i]?.EffectiveStyle is not { } effectiveStyle)
+            return -1;
+        return effectiveStyle.NumberFormatIndex;
+    }
+
+    public double GetColumnWidth(int i)
+    {
+        const double DefaultColumnWidth = 8.43D;
+
+        if (i >= FieldCount)
+        {
+            throw new ArgumentException($"Column at index {i} does not exist.", nameof(i));
+        }
+
+        var columnWidths = _worksheetIterator?.Current?.ColumnWidths;
+        if (columnWidths != null)
+        {
+            foreach (var columnWidth in columnWidths)
+            {
+                if (i >= columnWidth.Minimum && i <= columnWidth.Maximum)
+                {
+                    return columnWidth.Hidden ? 0 : columnWidth.Width ?? DefaultColumnWidth;
+                }
+            }
+        }
+
+        return DefaultColumnWidth;
+    }
+
+    public CellStyle GetCellStyle(int i)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+
+        var result = new CellStyle();
+        if (RowCells[i]?.EffectiveStyle is not { } effectiveStyle)
+        {
+            return result;
+        }
+
+        result.FontIndex = effectiveStyle.FontIndex;
+        result.NumberFormatIndex = effectiveStyle.NumberFormatIndex;
+        result.IndentLevel = effectiveStyle.IndentLevel;
+        result.HorizontalAlignment = effectiveStyle.HorizontalAlignment;
+        result.VerticalAlignment = effectiveStyle.VerticalAlignment;
+        result.Hidden = effectiveStyle.Hidden;
+        result.Locked = effectiveStyle.Locked;
+        return result;
+    }
+
+    public CellError? GetCellError(int i)
+    {
+        if (RowCells == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+        
+        return RowCells[i]?.Error;
+    }
+
+    /// <inheritdoc />
+    public void Reset()
+    {
+        _worksheetIterator?.Dispose();
+        _rowIterator?.Dispose();
+
+        _worksheetIterator = null;
+        _rowIterator = null;
+
+        _idx = 0;
+
+        ResetSheetData();
+
+        if (Workbook != null)
+        {
+            _worksheetIterator = ReadWorksheetsWithCache().GetEnumerator();
+            if (!_worksheetIterator.MoveNext())
+            {
+                _worksheetIterator.Dispose();
+                _worksheetIterator = null;
+                return;
+            }
+
+            _rowIterator = _worksheetIterator.Current.ReadRows().GetEnumerator();
+        }
+    }
+
+    public virtual void Close()
+    {
+        if (IsClosed)
+            return;
+
+        _worksheetIterator?.Dispose();
+        _rowIterator?.Dispose();
+
+        _worksheetIterator = null;
+        _rowIterator = null;
+        RowCells = null;
+        IsClosed = true;
+    }
+
+    public bool NextResult()
+    {
+        if (_worksheetIterator == null)
+        {
+            return false;
+        }
+
+        ResetSheetData();
+
+        _rowIterator?.Dispose();
+        _rowIterator = null;
+
+        if (!_worksheetIterator.MoveNext())
+        {
+            _worksheetIterator.Dispose();
+            _worksheetIterator = null;
+            return false;
+        }
+
+        _rowIterator = _worksheetIterator.Current.ReadRows().GetEnumerator();
+
+        _idx++;
+
+        return true;
+    }
+
+    public bool Read()
+    {
+        if (_worksheetIterator == null || _rowIterator == null)
+        {
+            return false;
+        }
+
+        if (!_rowIterator.MoveNext())
+        {
+            _rowIterator.Dispose();
+            _rowIterator = null;
+            return false;
+        }
+
+        ReadCurrentRow();
+
+        return true;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+
+        GC.SuppressFinalize(this);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (disposing)
+            Close();
+    }
+
+    private IEnumerable<TWorksheet> ReadWorksheetsWithCache()
+    {
+        // Iterate TWorkbook.ReadWorksheets() only once and cache the 
+        // worksheet instances, which are expensive to create. 
+        if (_cachedWorksheets != null)
+        {
+            foreach (var worksheet in _cachedWorksheets)
+            {
+                yield return worksheet;
+            }
+
+            if (_cachedWorksheetIterator == null)
+            {
+                yield break;
+            }
+        }
+        else
+        {
+            _cachedWorksheets = [];
+        }
+
+        if (Workbook is null)
+        {
+            yield break;
+        }
+
+        _cachedWorksheetIterator ??= Workbook.ReadWorksheets().GetEnumerator();
+
+        while (_cachedWorksheetIterator.MoveNext())
+        {
+            _cachedWorksheets.Add(_cachedWorksheetIterator.Current);
+            yield return _cachedWorksheetIterator.Current;
+        }
+
+        _cachedWorksheetIterator.Dispose();
+        _cachedWorksheetIterator = null;
+    }
+
+    private void ResetSheetData()
+    {
+        RowCells = null;
+    }
+
+    private void ReadCurrentRow()
+    {
+        RowCells ??= new Cell?[FieldCount];
+
+        Array.Clear(RowCells, 0, RowCells.Length);
+
+        var rowIterator = _rowIterator;
+        if (rowIterator == null)
+            throw new InvalidOperationException("No data exists for the row/column.");
+
+        foreach (var cell in rowIterator.Current.Cells)
+        {
+            if (cell.ColumnIndex >= RowCells.Length)
+            {
+                if (_singlePassMode)
+                {
+                    var resized = RowCells;
+                    Array.Resize(ref resized, cell.ColumnIndex + 1);
+                    RowCells = resized;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
+            RowCells[cell.ColumnIndex] = cell;
+        }
+    }
+
+    private TWorkbook GetWorkbook()
+    {
+        return Workbook ?? throw new InvalidOperationException("Workbook is not initialized.");
+    }
+}
