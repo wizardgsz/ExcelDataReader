@@ -152,15 +152,6 @@ internal sealed class AgileEncryption : EncryptionInfo
         return hash;
     }
 
-    private static HashIdentifier ParseHash(string value)
-    {
-#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
-        return Enum.Parse<HashIdentifier>(value);
-#else
-        return (HashIdentifier)Enum.Parse(typeof(HashIdentifier), value);
-#endif
-    }
-
     private static CipherIdentifier ParseCipher(string value/*, int blockBits*/) => value switch
     {
         "AES" => CipherIdentifier.AES,
@@ -217,7 +208,7 @@ internal sealed class AgileEncryption : EncryptionInfo
                 BlockSize = blockSize;
                 CipherAlgorithm = ParseCipher(cipherAlgorithm/*, blockSize * 8*/);
                 CipherChaining = ParseCipherMode(cipherChaining);
-                HashAlgorithm = ParseHash(hashAlgorithm);
+                HashAlgorithm = Enum.Parse<HashIdentifier>(hashAlgorithm);
                 xmlReader.Skip();
             }
             else if (xmlReader.IsStartElement(NKeyEncryptors, NsEncryption))
@@ -289,7 +280,7 @@ internal sealed class AgileEncryption : EncryptionInfo
                 PasswordSaltValue = Convert.FromBase64String(saltValue);
                 PasswordCipherAlgorithm = ParseCipher(cipherAlgorithm/*, blockSize * 8*/);
                 PasswordCipherChaining = ParseCipherMode(cipherChaining);
-                PasswordHashAlgorithm = ParseHash(hashAlgorithm);
+                PasswordHashAlgorithm = Enum.Parse<HashIdentifier>(hashAlgorithm);
                 PasswordEncryptedKeyValue = Convert.FromBase64String(encryptedKeyValue);
                 PasswordEncryptedVerifierHashInput = Convert.FromBase64String(encryptedVerifierHashInput);
                 PasswordEncryptedVerifierHashValue = Convert.FromBase64String(encryptedVerifierHashValue);

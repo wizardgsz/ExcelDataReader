@@ -32,12 +32,7 @@ internal sealed class XlsWorkbookPartReader(XlsBiffStream biffStream, int biffVe
                 case BIFFRECORDTYPE.FORMAT:
                     int index = frame.ReadUInt16(0);
                     var format = ReadFormat(frame, biffVersion);
-#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
                     formats.TryAdd(index, format);
-#else
-                    if (!formats.ContainsKey(index))
-                        formats.Add(index, format);
-#endif
                     break;
                 case BIFFRECORDTYPE.XF:
                 case BIFFRECORDTYPE.XF_V2:
