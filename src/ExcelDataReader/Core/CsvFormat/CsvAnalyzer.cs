@@ -138,34 +138,24 @@ internal static class CsvAnalyzer
             Encoding.Unicode, Encoding.BigEndianUnicode, Encoding.UTF8
         };
 
+        Encodings:
         foreach (var encoding in encodings)
         {
-            if (IsEncodingPreamble(bom, encoding, out int length))
+            var preamble = encoding.GetPreamble();
+            if (preamble.Length > bom.Length)
+                continue;
+            for (var i = 0; i < preamble.Length; i++)
             {
-                bomLength = length;
-                return encoding;
+                if (preamble[i] != bom[i])
+                    continue Encodings;
             }
+
+            bomLength = preamble.Length;
+            return encoding;
         }
 
         bomLength = 0;
         return null;
-    }
-
-    private static bool IsEncodingPreamble(byte[] bom, Encoding encoding, out int bomLength)
-    {
-        bomLength = 0;
-        var preabmle = encoding.GetPreamble();
-        if (preabmle.Length > bom.Length)
-            return false;
-        var i = 0;
-        for (; i < preabmle.Length; i++)
-        {
-            if (preabmle[i] != bom[i])
-                return false;
-        }
-
-        bomLength = i;
-        return true;
     }
 
     private readonly struct CountingHandler(SeparatorInfo info) : ICsvHandler

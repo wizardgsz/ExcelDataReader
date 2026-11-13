@@ -73,6 +73,7 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
 
             if (_inSheetData)
             {
+                ReadRows:
                 while (_inSheetData)
                 {
                     if (_pendingRowAdvance)
@@ -121,7 +122,6 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                         continue;
                     }
 
-                    bool foundRow = false;
                     while (!_reader.EOF)
                     {
                         if (_reader.NodeType == XmlNodeType.Element && _reader.LocalName == NRow)
@@ -144,11 +144,10 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
 
                             _pendingRowContents = true;
                             _rowOpen = true;
-                            foundRow = true;
                             if (handler.OnRow(_rowIndex, hidden != 0, height) == WorksheetReadControl.Pause)
                                 return WorksheetReadStatus.Paused;
 
-                            break;
+                            continue ReadRows;
                         }
                         else if (!XmlReaderHelper.SkipContent(_reader))
                         {
@@ -156,12 +155,9 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                         }
                     }
 
-                    if (!foundRow)
-                    {
-                        _inSheetData = false;
-                        if (mode == WorksheetReadMode.Scan && handler.OnScanResult(_scanMaxRowIndex, _scanMaxColumnIndex) == WorksheetReadControl.Pause)
-                            return WorksheetReadStatus.Paused;
-                    }
+                    _inSheetData = false;
+                    if (mode == WorksheetReadMode.Scan && handler.OnScanResult(_scanMaxRowIndex, _scanMaxColumnIndex) == WorksheetReadControl.Pause)
+                        return WorksheetReadStatus.Paused;
                 }
             }
 

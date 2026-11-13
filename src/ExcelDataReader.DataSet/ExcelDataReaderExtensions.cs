@@ -286,6 +286,7 @@ public static class ExcelDataReaderExtensions
             }
 
             DataTable? newTable = null;
+            Columns:
             for (int i = 0; i < table.Columns.Count; i++)
             {
                 Type? type = null;
@@ -302,8 +303,7 @@ public static class ExcelDataReaderExtensions
                         }
                         else
                         {
-                            type = null;
-                            break;
+                            continue Columns;
                         }
                     }
                 }
