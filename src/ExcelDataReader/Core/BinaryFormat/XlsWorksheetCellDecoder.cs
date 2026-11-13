@@ -123,20 +123,7 @@ internal sealed class XlsWorksheetCellDecoder(XlsWorksheet worksheet)
             if (multiByte)
                 return Encoding.Unicode.GetString(frame.Bytes, start, byteCount);
 
-#if NET8_0_OR_GREATER
-            return Encoding.Latin1.GetString(frame.Bytes.AsSpan(start, characterCount));
-#elif NETSTANDARD2_1_OR_GREATER
-            return string.Create(characterCount, (Bytes: frame.Bytes, Start: start), static (span, state) =>
-            {
-                for (int i = 0; i < span.Length; i++)
-                    span[i] = (char)state.Bytes[state.Start + i];
-            });
-#else
-            var characters = new char[characterCount];
-            for (int i = 0; i < characterCount; i++)
-                characters[i] = (char)frame.Bytes[start + i];
-            return new string(characters);
-#endif
+            return EncodingHelper.DecodeLatin1(frame.Bytes, start, characterCount);
         }
 
         offset += frame.Id == BIFFRECORDTYPE.LABEL_V2 ? 1 : 2;

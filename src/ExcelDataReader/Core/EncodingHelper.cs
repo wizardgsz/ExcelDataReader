@@ -4,6 +4,24 @@ namespace ExcelDataReader.Core;
 
 internal sealed class EncodingHelper
 {
+    public static string DecodeLatin1(byte[] bytes, int offset, int count)
+    {
+#if NET8_0_OR_GREATER
+        return Encoding.Latin1.GetString(bytes.AsSpan(offset, count));
+#elif NETSTANDARD2_1_OR_GREATER
+        return string.Create(count, (Bytes: bytes, Offset: offset), static (destination, state) =>
+        {
+            for (int i = 0; i < destination.Length; i++)
+                destination[i] = (char)state.Bytes[state.Offset + i];
+        });
+#else
+        var characters = new char[count];
+        for (int i = 0; i < count; i++)
+            characters[i] = (char)bytes[offset + i];
+        return new string(characters);
+#endif
+    }
+
     public static Encoding? GetEncoding(ushort codePage)
     {
         return codePage switch
