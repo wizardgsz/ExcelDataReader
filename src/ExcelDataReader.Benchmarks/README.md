@@ -43,9 +43,9 @@ Run the allocation benchmarks on net10.0:
 dotnet run --project src\ExcelDataReader.Benchmarks\ExcelDataReader.Benchmarks.csproj -c Release -f net10.0 -- --filter "*ReadTextFragments*" "*ParseCustomFormats*" "*ParseLongFormats*" --exporters json
 ```
 
-The net10.0 host uses the library's net8.0 build through normal project-reference
+The net10.0 host uses the library's net10.0 build through normal project-reference
 selection. The library continues to support net462, netstandard2.0,
-netstandard2.1, and net8.0, with optimized paths gated by API availability.
+netstandard2.1, and net10.0, with optimized paths gated by API availability.
 
 Run builds, tests, and benchmarks serially: they share output directories. Capture
 unchanged-code and candidate results in separate artifact directories on the same

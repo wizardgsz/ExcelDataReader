@@ -338,7 +338,7 @@ Thresholds are in MiB. Confirm actual spill: SpillToDisk256 is not universally b
 budget. Use `--filter "*SharedStringConstruction*"` for opening-only timings,
 or `--filter "*SharedStringStorage*"` for generated million-entry comparisons.
 
-The net10.0 host selects the library's net8.0 build. Use `-f net462` on Windows
+The net10.0 host selects the library's net10.0 build. Use `-f net462` on Windows
 for the Framework host. Optional `EDR_SST_LIBRARY` selects a compatible preserved
 library for construction-only baseline comparisons; unset it for the project
 reference. It also selects the library for the direct-store `--sst-io` diagnostic,

@@ -151,7 +151,7 @@ internal class CommonWorkbook
             {
                 return value switch
                 {
-                    int integer => TimeSpan.FromDays(integer),
+                    int integer => TimeSpan.FromDays((double)integer),
                     double number => TimeSpan.FromDays(number),
                     _ => value,
                 };

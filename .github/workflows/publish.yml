@@ -24,7 +24,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '10.x'
+          dotnet-version: '11.x'
 
       - name: NuGet login
         uses: NuGet/login@v1

@@ -77,7 +77,7 @@
         "contentHash": "hcg5NcuiGc2D78biDOaVt84CKsxBCUJwtsks2Zmw9eWYk1N68l0m5bhcfwgl8likZCJFNFw8p5Fa0Iy6upmw9A=="
       }
     },
-    "net8.0": {
+    "net10.0": {
       "PolySharp": {
         "type": "Direct",
         "requested": "[1.16.0, )",
