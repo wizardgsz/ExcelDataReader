@@ -1,7 +1,6 @@
 #nullable enable
 
 using System.Globalization;
-using System.Text;
 using System.Xml;
 using ExcelDataReader.Core.NumberFormat;
 
@@ -335,8 +334,7 @@ internal sealed class SpreadsheetXmlWorksheetReader : IWorksheetReader
             return string.Empty;
         }
 
-        string? result = null;
-        StringBuilder? builder = null;
+        TextAccumulator text = default;
         int depth = reader.Depth;
         while (reader.Read())
         {
@@ -344,14 +342,11 @@ internal sealed class SpreadsheetXmlWorksheetReader : IWorksheetReader
                 break;
             if (reader.NodeType is XmlNodeType.Text or XmlNodeType.CDATA or XmlNodeType.SignificantWhitespace or XmlNodeType.Whitespace)
             {
-                if (result == null)
-                    result = reader.Value;
-                else
-                    (builder ??= new StringBuilder(result)).Append(reader.Value);
+                text.Append(reader.Value);
             }
         }
 
-        return builder?.ToString() ?? result ?? string.Empty;
+        return text.ToString();
     }
 
     private static bool TryParseSpreadsheetDateTime(string value, bool duration, out object? dateTime)

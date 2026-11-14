@@ -32,8 +32,7 @@ internal static class XlsCommentsReader
                     int size = count * (wide ? 2 : 1);
                     Require(size <= frame.RecordSize - 11);
                     var authorText = new StringBuilder(count);
-                    for (int i = 0; i < count; i++)
-                        authorText.Append(wide ? (char)frame.ReadUInt16(11 + (i * 2)) : (char)frame.ReadByte(11 + i));
+                    AppendCharacters(authorText, frame, 11, count, wide);
                     string author = authorText.ToString();
                     int noteId = frame.ReadUInt16(6);
                     Require(!notes.ContainsKey(noteId));
@@ -78,9 +77,7 @@ internal static class XlsCommentsReader
             int characters = bytes / (wide ? 2 : 1);
             Require(characters <= remaining);
 
-            // Preserve UTF-16 code units even when a surrogate pair crosses records.
-            for (int i = 0; i < characters; i++)
-                text.Append(wide ? (char)frame.ReadUInt16(1 + (i * 2)) : (char)frame.ReadByte(i + 1));
+            AppendCharacters(text, frame, 1, characters, wide);
 
             remaining -= characters;
         }
@@ -92,6 +89,13 @@ internal static class XlsCommentsReader
         }
 
         return text.ToString();
+    }
+
+    private static void AppendCharacters(StringBuilder text, XlsBiffFrame frame, int offset, int count, bool wide)
+    {
+        // Preserve UTF-16 code units even when a surrogate pair crosses records.
+        for (int i = 0; i < count; i++)
+            text.Append(wide ? (char)frame.ReadUInt16(offset + (i * 2)) : (char)frame.ReadByte(offset + i));
     }
 
     private static void ReadLegacyNote(XlsBiffStream stream, XlsBiffFrame frame, Encoding encoding, Dictionary<long, CellCommentThread> result)

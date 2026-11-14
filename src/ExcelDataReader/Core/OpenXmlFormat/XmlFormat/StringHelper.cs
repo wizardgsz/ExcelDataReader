@@ -1,4 +1,3 @@
-using System.Text;
 using System.Xml;
 
 namespace ExcelDataReader.Core.OpenXmlFormat.XmlFormat;
@@ -18,18 +17,17 @@ internal static class StringHelper
             return string.Empty;
         }
         
-        string? result = null;
-        StringBuilder? sb = null;
+        TextAccumulator text = default;
         while (!reader.EOF)
         {
             if (reader.IsStartElement(ElementT, nsSpreadsheetMl))
             {
                 // There are multiple <t> in a <si>. Concatenate <t> within an <si>.
-                AppendElement(reader, ref result, ref sb);
+                text.Append(ReadElementContent(reader));
             }
             else if (reader.IsStartElement(ElementR, nsSpreadsheetMl))
             {
-                ReadRichTextRun(reader, ref result, ref sb, nsSpreadsheetMl);
+                ReadRichTextRun(reader, ref text, nsSpreadsheetMl);
             }
             else if (!XmlReaderHelper.SkipContent(reader))
             {
@@ -37,26 +35,10 @@ internal static class StringHelper
             }
         }
 
-        return sb?.ToString() ?? result ?? string.Empty;
+        return text.ToString();
     }
 
-    private static void AppendFragment(string fragment, ref string? result, ref StringBuilder? sb)
-    {
-        if (fragment.Length == 0)
-            return;
-
-        if (result == null)
-            result = fragment;
-        else
-            (sb ??= new StringBuilder(result)).Append(fragment);
-    }
-
-    private static void AppendElement(XmlReader reader, ref string? result, ref StringBuilder? sb)
-    {
-        AppendFragment(ReadElementContent(reader), ref result, ref sb);
-    }
-
-    private static void ReadRichTextRun(XmlReader reader, ref string? result, ref StringBuilder? sb, string nsSpreadsheetMl)
+    private static void ReadRichTextRun(XmlReader reader, ref TextAccumulator text, string nsSpreadsheetMl)
     {
         if (!XmlReaderHelper.ReadFirstContent(reader))
         {
@@ -67,7 +49,7 @@ internal static class StringHelper
         {
             if (reader.IsStartElement(ElementT, nsSpreadsheetMl))
             {
-                AppendElement(reader, ref result, ref sb);
+                text.Append(ReadElementContent(reader));
             }
             else if (!XmlReaderHelper.SkipContent(reader))
             {
