@@ -1,10 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
+using ExcelDataReader.Core;
 using ExcelDataReader.Core.BinaryFormat;
 using ExcelDataReader.Core.CompoundFormat;
 using ExcelDataReader.Core.OfficeCrypto;
 using ExcelDataReader.Core.XmlSpreadsheetFormat;
 using ExcelDataReader.Exceptions;
-using ExcelDataReader.Misc;
 
 namespace ExcelDataReader;
 

@@ -1,7 +1,7 @@
 #if NET8_0_OR_GREATER
+using ExcelDataReader.Core;
 using ExcelDataReader.Core.CompoundFormat;
 using ExcelDataReader.Core.OfficeCrypto;
-using ExcelDataReader.Misc;
 using ExcelDataReader.TestFixtures;
 
 namespace ExcelDataReader.Tests;
