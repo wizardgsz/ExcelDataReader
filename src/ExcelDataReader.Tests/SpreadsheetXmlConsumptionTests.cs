@@ -16,6 +16,10 @@ public sealed class SpreadsheetXmlConsumptionTests
         Row,
         Cell,
         RowEnd,
+        SheetDataBegin,
+        Merge,
+        CodeName,
+        HeaderFooter,
     }
 
     [TestCase(false)]
@@ -104,6 +108,38 @@ public sealed class SpreadsheetXmlConsumptionTests
         Assert.That(state.Events, Does.Contain("cell:0:2.5"));
     }
 
+    [TestCase("SheetDataBegin")]
+    [TestCase("Merge")]
+    [TestCase("CodeName")]
+    [TestCase("HeaderFooter")]
+    public void PausingAtMetadataPreservesSpannedRowsAndPendingEvents(string callback)
+    {
+        using var reader = CreateReader(
+            """
+            <Worksheet ss:Name="Push">
+              <Table>
+                <Row ss:Index="2" ss:Span="1" ss:Height="24">
+                  <Cell ss:MergeAcross="1"><Data ss:Type="String">value</Data></Cell>
+                </Row>
+                <Row><Cell><Data ss:Type="Number">3</Data></Cell></Row>
+              </Table>
+              <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+                <CodeName>Code</CodeName><Header xmlns:x="urn:schemas-microsoft-com:office:excel" x:Data="heading"/>
+              </WorksheetOptions>
+            </Worksheet>
+            """);
+        var state = new CallbackState { PauseAt = (CallbackKind)Enum.Parse(typeof(CallbackKind), callback) };
+        var handler = new RecordingHandler(state);
+        Assert.That(reader.Consume(ref handler), Is.EqualTo(WorksheetReadStatus.Paused));
+        Assert.That(reader.Consume(ref handler), Is.EqualTo(WorksheetReadStatus.EndOfInput));
+        Assert.That(reader.Consume(ref handler), Is.EqualTo(WorksheetReadStatus.EndOfInput));
+        Assert.That(state.Events, Is.EqualTo(new[]
+        {
+            "sheet-data", "row:1", "merge:0:1:1:1", "cell:0:value", "row-end",
+            "row:2", "row-end", "row:3", "cell:0:3", "row-end", "code:Code", "header:heading",
+        }));
+    }
+
     private static IWorksheetReader CreateReader(string worksheet)
     {
         string xml =
@@ -128,7 +164,11 @@ public sealed class SpreadsheetXmlConsumptionTests
     {
         public WorksheetReadControl OnDimension(CellRange range) => WorksheetReadControl.Continue;
 
-        public WorksheetReadControl OnCodeName(string? codeName) => WorksheetReadControl.Continue;
+        public WorksheetReadControl OnCodeName(string? codeName)
+        {
+            state.Events.Add($"code:{codeName}");
+            return state.Pause(CallbackKind.CodeName) ? WorksheetReadControl.Pause : WorksheetReadControl.Continue;
+        }
 
         public WorksheetReadControl OnDefaultRowHeight(double? height) => WorksheetReadControl.Continue;
 
@@ -137,12 +177,20 @@ public sealed class SpreadsheetXmlConsumptionTests
         public WorksheetReadControl OnMergeCell(CellRange range)
         {
             state.Events.Add($"merge:{range.FromColumn}:{range.FromRow}:{range.ToColumn}:{range.ToRow}");
-            return WorksheetReadControl.Continue;
+            return state.Pause(CallbackKind.Merge) ? WorksheetReadControl.Pause : WorksheetReadControl.Continue;
         }
 
-        public WorksheetReadControl OnHeaderFooter(HeaderFooter headerFooter) => WorksheetReadControl.Continue;
+        public WorksheetReadControl OnHeaderFooter(HeaderFooter headerFooter)
+        {
+            state.Events.Add($"header:{headerFooter.OddHeader}");
+            return state.Pause(CallbackKind.HeaderFooter) ? WorksheetReadControl.Pause : WorksheetReadControl.Continue;
+        }
 
-        public WorksheetReadControl OnSheetDataBegin() => WorksheetReadControl.Continue;
+        public WorksheetReadControl OnSheetDataBegin()
+        {
+            state.Events.Add("sheet-data");
+            return state.Pause(CallbackKind.SheetDataBegin) ? WorksheetReadControl.Pause : WorksheetReadControl.Continue;
+        }
 
         public WorksheetReadControl OnScanResult(int maxRowIndex, int maxColumnIndex) => WorksheetReadControl.Continue;
 
