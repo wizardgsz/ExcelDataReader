@@ -1,4 +1,6 @@
-﻿namespace ExcelDataReader.Core.OpenXmlFormat.XmlFormat;
+﻿using System.Xml;
+
+namespace ExcelDataReader.Core.OpenXmlFormat.XmlFormat;
 
 internal static class XmlNamespaces
 {
@@ -7,4 +9,9 @@ internal static class XmlNamespaces
 
     public const string NsSpreadsheetMl = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
     public const string NsDocumentRelationship = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+    public static string GetSpreadsheetMlNamespace(XmlReader reader) =>
+        reader.IsStartElement() && reader.NamespaceURI == StrictNsSpreadsheetMl
+            ? StrictNsSpreadsheetMl
+            : NsSpreadsheetMl;
 }

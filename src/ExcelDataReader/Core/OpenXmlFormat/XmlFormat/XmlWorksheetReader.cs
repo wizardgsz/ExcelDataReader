@@ -42,7 +42,8 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
     private const string AHt = "ht";
 
     private readonly XmlReader _reader = reader;
-    private readonly XmlProperNamespaces _properNamespaces = new(reader.IsStartElement() && reader.NamespaceURI == XmlNamespaces.StrictNsSpreadsheetMl);
+    private readonly string _nsSpreadsheetMl = XmlNamespaces.GetSpreadsheetMlNamespace(reader);
+
     private bool _metadataStarted;
     private bool _endOfInput;
     private int _scanMaxRowIndex = int.MinValue;
@@ -242,7 +243,7 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
         if (!_metadataStarted)
         {
             _metadataStarted = true;
-            if (!_reader.IsStartElement(NWorksheet, _properNamespaces.NsSpreadsheetMl) || !XmlReaderHelper.ReadFirstContent(_reader))
+            if (!_reader.IsStartElement(NWorksheet, _nsSpreadsheetMl) || !XmlReaderHelper.ReadFirstContent(_reader))
             {
                 _endOfInput = true;
                 return WorksheetReadStatus.EndOfInput;
@@ -251,7 +252,7 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
 
         while (!_reader.EOF)
         {
-            if (_reader.IsStartElement(NSheetData, _properNamespaces.NsSpreadsheetMl))
+            if (_reader.IsStartElement(NSheetData, _nsSpreadsheetMl))
             {
                 _rowIndex = -1;
                 _inSheetData = XmlReaderHelper.ReadFirstContent(_reader);
@@ -262,11 +263,11 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                 if (_inSheetData || _pendingScanResult)
                     return null;
             }
-            else if (_reader.IsStartElement(NMergeCells, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NMergeCells, _nsSpreadsheetMl))
             {
                 XmlReaderHelper.ReadFirstContent(_reader);
             }
-            else if (_reader.IsStartElement(NMergeCell, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NMergeCell, _nsSpreadsheetMl))
             {
                 var cellRefs = _reader.GetAttribute(ARef);
                 CellRange? range = string.IsNullOrEmpty(cellRefs) ? null : CellRange.Parse(cellRefs);
@@ -274,17 +275,17 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                 if (range is { } value && handler.OnMergeCell(value) == WorksheetReadControl.Pause)
                     return WorksheetReadStatus.Paused;
             }
-            else if (_reader.IsStartElement(NHeaderFooter, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NHeaderFooter, _nsSpreadsheetMl))
             {
-                var headerFooter = ReadHeaderFooter(_properNamespaces.NsSpreadsheetMl);
+                var headerFooter = ReadHeaderFooter(_nsSpreadsheetMl);
                 if (headerFooter != null && handler.OnHeaderFooter(headerFooter) == WorksheetReadControl.Pause)
                     return WorksheetReadStatus.Paused;
             }
-            else if (_reader.IsStartElement(NCols, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NCols, _nsSpreadsheetMl))
             {
                 XmlReaderHelper.ReadFirstContent(_reader);
             }
-            else if (_reader.IsStartElement(NCol, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NCol, _nsSpreadsheetMl))
             {
                 var min = _reader.GetAttribute(AMin);
                 var max = _reader.GetAttribute(AMax);
@@ -300,14 +301,14 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                 if (handler.OnColumn(column) == WorksheetReadControl.Pause)
                     return WorksheetReadStatus.Paused;
             }
-            else if (_reader.IsStartElement(NSheetProperties, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NSheetProperties, _nsSpreadsheetMl))
             {
                 var codeName = _reader.GetAttribute("codeName");
                 _reader.Skip();
                 if (handler.OnCodeName(codeName) == WorksheetReadControl.Pause)
                     return WorksheetReadStatus.Paused;
             }
-            else if (_reader.IsStartElement(NSheetFormatProperties, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NSheetFormatProperties, _nsSpreadsheetMl))
             {
                 double? height = double.TryParse(_reader.GetAttribute(ADefaultRowHeight), NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedHeight)
                     ? Math.Abs(parsedHeight)
@@ -316,7 +317,7 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
                 if (height != null && handler.OnDefaultRowHeight(height) == WorksheetReadControl.Pause)
                     return WorksheetReadStatus.Paused;
             }
-            else if (_reader.IsStartElement(NDimension, _properNamespaces.NsSpreadsheetMl))
+            else if (_reader.IsStartElement(NDimension, _nsSpreadsheetMl))
             {
                 var reference = _reader.GetAttribute(ARef);
                 CellRange? range = reference == null ? null : CellRange.Parse(reference);
@@ -404,7 +405,7 @@ internal sealed class XmlWorksheetReader(XmlReader reader, WorksheetReadMode mod
             }
             else if (_reader.NodeType == XmlNodeType.Element && _reader.LocalName == NIs)
             {
-                string rawValue = StringHelper.ReadStringItem(_reader, _properNamespaces.NsSpreadsheetMl);
+                string rawValue = StringHelper.ReadStringItem(_reader, _nsSpreadsheetMl);
                 if (!string.IsNullOrEmpty(rawValue))
                     value = ConvertCellValue(rawValue, cellType, out error);
             }

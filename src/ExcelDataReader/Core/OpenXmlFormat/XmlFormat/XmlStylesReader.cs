@@ -31,11 +31,11 @@ internal sealed class XmlStylesReader(XmlReader reader)
     private const string AHidden = "hidden";
     private const string ALocked = "locked";
 
-    private readonly XmlProperNamespaces _properNamespaces = new(reader.IsStartElement() && reader.NamespaceURI == XmlNamespaces.StrictNsSpreadsheetMl);
+    private readonly string _nsSpreadsheetMl = XmlNamespaces.GetSpreadsheetMlNamespace(reader);
 
     public void Load(IStylesPartSink sink)
     {
-        if (!reader.IsStartElement(ElementStyleSheet, _properNamespaces.NsSpreadsheetMl))
+        if (!reader.IsStartElement(ElementStyleSheet, _nsSpreadsheetMl))
         {
             return;
         }
@@ -47,15 +47,15 @@ internal sealed class XmlStylesReader(XmlReader reader)
 
         while (!reader.EOF)
         {
-            if (reader.IsStartElement(ElementCellCrossReference, _properNamespaces.NsSpreadsheetMl))
+            if (reader.IsStartElement(ElementCellCrossReference, _nsSpreadsheetMl))
             {
-                ReadCellXfs(_properNamespaces.NsSpreadsheetMl, sink.AddExtendedFormat);
+                ReadCellXfs(_nsSpreadsheetMl, sink.AddExtendedFormat);
             }
-            else if (reader.IsStartElement(ElementCellStyleCrossReference, _properNamespaces.NsSpreadsheetMl))
+            else if (reader.IsStartElement(ElementCellStyleCrossReference, _nsSpreadsheetMl))
             {
-                ReadCellXfs(_properNamespaces.NsSpreadsheetMl, sink.AddCellStyleExtendedFormat);
+                ReadCellXfs(_nsSpreadsheetMl, sink.AddCellStyleExtendedFormat);
             }
-            else if (reader.IsStartElement(ElementNumberFormats, _properNamespaces.NsSpreadsheetMl))
+            else if (reader.IsStartElement(ElementNumberFormats, _nsSpreadsheetMl))
             {
                 if (!XmlReaderHelper.ReadFirstContent(reader))
                 {
@@ -64,7 +64,7 @@ internal sealed class XmlStylesReader(XmlReader reader)
 
                 while (!reader.EOF)
                 {
-                    if (reader.IsStartElement(NNumFmt, _properNamespaces.NsSpreadsheetMl))
+                    if (reader.IsStartElement(NNumFmt, _nsSpreadsheetMl))
                     {
                         int.TryParse(reader.GetAttribute(ANumFmtId), NumberStyles.Integer, CultureInfo.InvariantCulture, out var numFmtId);
                         var formatCode = reader.GetAttribute(AFormatCode);

@@ -9,13 +9,11 @@ internal static class XmlCommentsReader
 {
     public static Dictionary<long, CellCommentThread> Load(XmlReader reader)
     {
-        const string Transitional = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-        const string Strict = "http://purl.oclc.org/ooxml/spreadsheetml/main";
         var result = new Dictionary<long, CellCommentThread>();
         var authors = new List<string>();
         reader.MoveToContent();
         string ns = reader.NamespaceURI;
-        if (reader.LocalName != "comments" || (ns != Transitional && ns != Strict))
+        if (reader.LocalName != "comments" || (ns != XmlNamespaces.NsSpreadsheetMl && ns != XmlNamespaces.StrictNsSpreadsheetMl))
             throw new ExcelReaderException("Invalid comments part.");
         while (reader.Read())
         {

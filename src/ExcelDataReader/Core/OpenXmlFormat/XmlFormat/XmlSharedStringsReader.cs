@@ -12,12 +12,11 @@ internal sealed class XmlSharedStringsReader(XmlReader reader, ISharedStringStor
 
     private ISharedStringStore Store { get; } = store ?? throw new ArgumentNullException(nameof(store));
 
-    private XmlProperNamespaces ProperNamespaces { get; } =
-        new(reader.IsStartElement() && reader.NamespaceURI == XmlNamespaces.StrictNsSpreadsheetMl);
+    private string NsSpreadsheetMl { get; } = XmlNamespaces.GetSpreadsheetMlNamespace(reader);
 
     public void Load()
     {
-        if (!Reader.IsStartElement(ElementSst, ProperNamespaces.NsSpreadsheetMl))
+        if (!Reader.IsStartElement(ElementSst, NsSpreadsheetMl))
             return;
 
         var uniqueCountStr = Reader.GetAttribute(AttributeUniqueCount);
@@ -31,7 +30,7 @@ internal sealed class XmlSharedStringsReader(XmlReader reader, ISharedStringStor
         {
             if (Reader.NodeType == XmlNodeType.Element && Reader.LocalName == ElementStringItem)
             {
-                Store.Add(Helpers.ConvertEscapeChars(StringHelper.ReadStringItem(Reader, ProperNamespaces.NsSpreadsheetMl)));
+                Store.Add(Helpers.ConvertEscapeChars(StringHelper.ReadStringItem(Reader, NsSpreadsheetMl)));
             }
             else if (!XmlReaderHelper.SkipContent(Reader))
             {

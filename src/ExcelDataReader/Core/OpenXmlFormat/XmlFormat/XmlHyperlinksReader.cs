@@ -5,17 +5,12 @@ namespace ExcelDataReader.Core.OpenXmlFormat.XmlFormat;
 
 internal static class XmlHyperlinksReader
 {
-    private const string TransitionalSpreadsheetMl = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-    private const string StrictSpreadsheetMl = "http://purl.oclc.org/ooxml/spreadsheetml/main";
-    private const string TransitionalRelationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-    private const string StrictRelationships = "http://purl.oclc.org/ooxml/officeDocument/relationships";
-
     public static HyperlinkStore Load(XmlReader reader, IReadOnlyDictionary<string, string> relationships)
     {
         var result = new HyperlinkStore();
         reader.MoveToContent();
         string ns = reader.NamespaceURI;
-        if (reader.LocalName != "worksheet" || (ns != TransitionalSpreadsheetMl && ns != StrictSpreadsheetMl))
+        if (reader.LocalName != "worksheet" || (ns != XmlNamespaces.NsSpreadsheetMl && ns != XmlNamespaces.StrictNsSpreadsheetMl))
             throw new XmlException("Invalid worksheet part.");
 
         bool inHyperlinks = false;
@@ -43,7 +38,7 @@ internal static class XmlHyperlinksReader
 
             string reference = reader.GetAttribute("ref") ?? string.Empty;
             CellRange range = HyperlinkStore.ParseRange(reference);
-            string? relationshipId = reader.GetAttribute("id", ns == StrictSpreadsheetMl ? StrictRelationships : TransitionalRelationships);
+            string? relationshipId = reader.GetAttribute("id", ns == XmlNamespaces.StrictNsSpreadsheetMl ? XmlNamespaces.StrictNsDocumentRelationship : XmlNamespaces.NsDocumentRelationship);
             string? location = reader.GetAttribute("location");
             string? tooltip = reader.GetAttribute("tooltip");
 
