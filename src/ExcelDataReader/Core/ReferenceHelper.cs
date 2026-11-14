@@ -10,16 +10,44 @@ internal static class ReferenceHelper
     /// <param name="row">The row, 1-based.</param>
 #if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
     public static bool ParseReference(ReadOnlySpan<char> value, out int column, out int row)
+#else
+    public static bool ParseReference(string value, out int column, out int row)
+#endif
     {
         column = 0;
-        var position = 0;
+        row = 0;
+#if !(NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER)
+        if (value == null)
+            return false;
+#endif
+        if (!TryParseColumn(value, out column, out int position))
+            return false;
 
+        return TryParseDecInt(value, position, out row);
+    }
+
+    private static bool IsDigit(int ch) => ((uint)ch - '0') <= 9;
+
+#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+    private static bool TryParseColumn(ReadOnlySpan<char> value, out int column, out int position)
+#else
+    private static bool TryParseColumn(string value, out int column, out int position)
+#endif
+    {
+        column = 0;
+        position = 0;
         while (position < value.Length)
         {
             var c = value[position];
             int letter = (c | 0x20) - 'a';
             if ((uint)letter <= 'z' - 'a')
             {
+                if (column > (int.MaxValue - letter - 1) / 26)
+                {
+                    column = 0;
+                    return false;
+                }
+
                 position++;
                 column *= 26;
                 column += letter + 1;
@@ -27,36 +55,26 @@ internal static class ReferenceHelper
             }
 
             if (IsDigit(c))
-                break;
+                return position > 0;
 
-            position = 0;
-            break;
-        }
-
-        if (position == 0)
-        {
             column = 0;
-            row = 0;
             return false;
         }
 
-        if (!TryParseDecInt(value[position..], out row))
-        {
-            return false;
-        }
-
-        return true;
+        return position > 0;
     }
 
-    private static bool IsDigit(int ch) => ((uint)ch - '0') <= 9;
-
-    private static bool TryParseDecInt(ReadOnlySpan<char> s, out int result)
+#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+    private static bool TryParseDecInt(ReadOnlySpan<char> s, int startIndex, out int result)
+#else
+    private static bool TryParseDecInt(string s, int startIndex, out int result)
+#endif
     {
-        if (s.Length == 0)
+        if (startIndex >= s.Length)
             goto Fail;
 
         long r = 0;
-        for (int i = 0; i < s.Length; i++)
+        for (int i = startIndex; i < s.Length; i++)
         {
             int num = s[i];
             if (!IsDigit(num))
@@ -73,73 +91,4 @@ internal static class ReferenceHelper
         result = 0;
         return false;
     }
-#else
-    public static bool ParseReference(string value, out int column, out int row)
-    {
-        column = 0;
-        var position = 0;
-
-        if (value != null)
-        {
-            while (position < value.Length)
-            {
-                var c = value[position];
-                int letter = (c | 0x20) - 'a';
-                if ((uint)letter <= 'z' - 'a')
-                {
-                    position++;
-                    column *= 26;
-                    column += letter + 1;
-                    continue;
-                }
-
-                if (IsDigit(c))
-                    break;
-
-                position = 0;
-                break;
-            }
-        }
-
-        if (position == 0)
-        {
-            column = 0;
-            row = 0;
-            return false;
-        }
-
-        if (!TryParseDecInt(value!, position, out row))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static bool IsDigit(int ch) => ((uint)ch - '0') <= 9;
-
-    private static bool TryParseDecInt(string s, int startIndex, out int result)
-    {
-        if (startIndex >= s.Length)
-            goto Fail;
-
-        long r = 0;
-        for (int i = startIndex; i < s.Length; ++i)
-        {
-            int num = s[i];
-            if (!IsDigit(num))
-                goto Fail;
-            r = r * 10 + (num - '0');
-            if (r > int.MaxValue)
-                goto Fail;
-        }
-
-        result = (int)r;
-        return true;
-
-        Fail:
-        result = 0;
-        return false;
-    }
-#endif
 }

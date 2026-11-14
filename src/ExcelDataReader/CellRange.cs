@@ -1,4 +1,5 @@
 using ExcelDataReader.Core;
+using ExcelDataReader.Exceptions;
 
 namespace ExcelDataReader;
 
@@ -18,32 +19,40 @@ public sealed record CellRange(int FromColumn, int FromRow, int ToColumn, int To
     internal static CellRange Parse(string range)
     {
         int index = range.IndexOf(':');
+        if (index < 0 && ReferenceHelper.ParseReference(range, out int column, out int row))
+            return new(column - 1, row - 1, column - 1, row - 1);
+
         if (index >= 0 && range.IndexOf(':', index + 1) < 0)
         {
             ReadOnlySpan<char> span = range;
-            ReferenceHelper.ParseReference(span[..index], out int fromColumn, out int fromRow);
-            ReferenceHelper.ParseReference(span[(index + 1)..], out int toColumn, out int toRow);
+            if (!ReferenceHelper.ParseReference(span[..index], out int fromColumn, out int fromRow) ||
+                !ReferenceHelper.ParseReference(span[(index + 1)..], out int toColumn, out int toRow))
+                throw new ExcelReaderException("Invalid cell range reference.");
 
             // 0 indexed vs 1 indexed
             return new(fromColumn - 1, fromRow - 1, toColumn - 1, toRow - 1);
         }
 
-        return new(0, 0, 0, 0);
+        throw new ExcelReaderException("Invalid cell range reference.");
     }
 #else
     internal static CellRange Parse(string range)
     {
         var fromTo = range.Split(':');
+        if (fromTo.Length == 1 && ReferenceHelper.ParseReference(range, out int column, out int row))
+            return new(column - 1, row - 1, column - 1, row - 1);
+
         if (fromTo.Length == 2)
         {
-            ReferenceHelper.ParseReference(fromTo[0], out int fromColumn, out int fromRow);
-            ReferenceHelper.ParseReference(fromTo[1], out int toColumn, out int toRow);
+            if (!ReferenceHelper.ParseReference(fromTo[0], out int fromColumn, out int fromRow) ||
+                !ReferenceHelper.ParseReference(fromTo[1], out int toColumn, out int toRow))
+                throw new ExcelReaderException("Invalid cell range reference.");
 
             // 0 indexed vs 1 indexed
             return new(fromColumn - 1, fromRow - 1, toColumn - 1, toRow - 1);
         }
 
-        return new(0, 0, 0, 0);
+        throw new ExcelReaderException("Invalid cell range reference.");
     }
 #endif
 }

@@ -235,9 +235,10 @@ public sealed class CellCommentTests
         AssertMessage(reader.GetComment(0), "one", " before bold after ");
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
-    public void OpenXmlResolvesStrictAbsolutePathsAndIgnoresPhonetics(bool external)
+    [TestCase(false, "A14")]
+    [TestCase(true, "A14")]
+    [TestCase(false, "A000000000014")]
+    public void OpenXmlResolvesStrictAbsolutePathsAndIgnoresPhonetics(bool external, string reference)
     {
         byte[] bytes = CreateWorkbook("xlsx");
         using var stream = new MemoryStream();
@@ -247,11 +248,11 @@ public sealed class CellCommentTests
             zip.GetEntry("xl/worksheets/_rels/data.xml.rels")!.Delete();
             WriteEntry(zip, "xl/worksheets/_rels/data.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"notes\" Type=\"http://purl.oclc.org/ooxml/officeDocument/relationships/comments\" Target=\"{(external ? "https://example.invalid/comments.xml" : "/notes/comments.xml")}\"{(external ? " TargetMode=\"External\"" : string.Empty)}/></Relationships>");
             zip.GetEntry("notes/comments.xml")!.Delete();
-            WriteEntry(zip, "notes/comments.xml", """
+            WriteEntry(zip, "notes/comments.xml", $$"""
                 <comments xmlns="http://purl.oclc.org/ooxml/spreadsheetml/main">
                   <authors><author>_x0041_uthor</author></authors>
                   <commentList>
-                    <comment ref="A14" authorId="0"><text><t xml:space="preserve"> text </t>
+                    <comment ref="{{reference}}" authorId="0"><text><t xml:space="preserve"> text </t>
                       <rPh sb="0" eb="1"><t>phonetic</t></rPh></text></comment>
                     <comment ref="A15" authorId="0"><text/></comment>
                   </commentList>
@@ -279,6 +280,8 @@ public sealed class CellCommentTests
     [TestCase("XFE1", "0")]
     [TestCase("A1048577", "0")]
     [TestCase("AAAAAAA1", "0")]
+    [TestCase("MWLQKWV14", "0")]
+    [TestCase("A2147483648", "0")]
     [TestCase("A14", null)]
     [TestCase("A14", "-1")]
     [TestCase("A14", "1")]

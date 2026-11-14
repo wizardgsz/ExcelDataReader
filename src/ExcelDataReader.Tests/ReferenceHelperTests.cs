@@ -1,4 +1,5 @@
 using ExcelDataReader.Core;
+using ExcelDataReader.Exceptions;
 
 namespace ExcelDataReader.Tests;
 
@@ -11,6 +12,9 @@ public class ReferenceHelperTests
     [TestCase("A0", true, 1, 0)]
     [TestCase("A2147483647", true, 1, int.MaxValue)]
     [TestCase("A2147483648", false, 1, 0)]
+    [TestCase("FXSHRXW1", true, int.MaxValue, 1)]
+    [TestCase("FXSHRXX1", false, 0, 0)]
+    [TestCase("MWLQKWV1", false, 0, 0)]
     [TestCase("A1!", false, 1, 0)]
     [TestCase("A\u0661", false, 0, 0)]
     [TestCase("$A1", false, 0, 0)]
@@ -41,5 +45,22 @@ public class ReferenceHelperTests
                 Assert.That(row, Is.EqualTo(1));
             }
         }
+    }
+
+    [TestCase("MWLQKWV1:A2")]
+    [TestCase("A1:MWLQKWV2")]
+    [TestCase("A1:A2147483648")]
+    [TestCase("A1:invalid")]
+    [TestCase("invalid")]
+    public void InvalidRangesAreRejected(string reference)
+    {
+        Assert.Throws<ExcelReaderException>(() => CellRange.Parse(reference));
+    }
+
+    [TestCase("A1", 0, 0)]
+    [TestCase("C5", 2, 4)]
+    public void SingleCellRangesAreAccepted(string reference, int column, int row)
+    {
+        Assert.That(CellRange.Parse(reference), Is.EqualTo(new CellRange(column, row, column, row)));
     }
 }

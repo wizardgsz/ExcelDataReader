@@ -30,9 +30,7 @@ internal static class XmlCommentsReader
             else if (reader.LocalName == "comment")
             {
                 string reference = reader.GetAttribute("ref") ?? string.Empty;
-                if (reference.Length is < 2 or > 10 ||
-                    (reference.Length > 3 && char.IsLetter(reference[3])) ||
-                    !ReferenceHelper.ParseReference(reference, out int column, out int row))
+                if (!ReferenceHelper.ParseReference(reference, out int column, out int row))
                     throw new ExcelReaderException("Invalid comment cell reference.");
                 string author = reader.GetAttribute("authorId") ?? throw new ExcelReaderException("Missing comment author.");
                 if (!int.TryParse(author, NumberStyles.Integer, CultureInfo.InvariantCulture, out int authorId) ||
